@@ -242,7 +242,7 @@ with col_grafico:
     fig_rank.tight_layout()
     st.pyplot(fig_rank)
 
-st.success("🥇 **Destaque**: Sábado é o campeão absoluto de consumo, seguido por Sexta-feira e Domingo!")
+st.success("🥇 **Destaque**: Domingo  é o campeão absoluto de consumo, seguido por Sábado e Sexta-feira!")
 
 st.divider()
 
@@ -336,7 +336,7 @@ fig.suptitle(
 fig.tight_layout(rect=[0, 0, 1, 0.97])
 st.pyplot(fig)
 
-st.info("💡 **Padrão Identificado**: Em todos os meses, os finais de semana (especialmente sábado) mantêm o maior consumo.")
+st.info("💡 **Padrão Identificado**: Em todos os meses, os finais de semana mantêm o maior consumo.")
 
 st.divider()
 
@@ -507,7 +507,7 @@ rect_max = Rectangle(
     edgecolor='green',
     linewidth=5,
     zorder=10,
-    label='✅ Maior consumo'
+    label='Maior consumo'
 )
 ax.add_patch(rect_max)
 
@@ -519,7 +519,7 @@ rect_min = Rectangle(
     edgecolor='red',
     linewidth=5,
     zorder=10,
-    label='❌ Menor consumo'
+    label='Menor consumo'
 )
 ax.add_patch(rect_min)
 
@@ -669,7 +669,7 @@ col1, col2 = st.columns(2)
 
 with col1:
     st.markdown("""
-    ### ✅ Fatores que **AUMENTAM** o consumo:
+    ### Fatores que **AUMENTAM** o consumo:
     
     1. **Finais de semana** (especialmente sábados)
     2. **Temperaturas elevadas**
@@ -679,7 +679,7 @@ with col1:
 
 with col2:
     st.markdown("""
-    ### ❌ Fatores que **REDUZEM** o consumo:
+    ### Fatores que **REDUZEM** o consumo:
     
     1. **Dias úteis** (segunda a quinta-feira)
     2. **Precipitação intensa**
