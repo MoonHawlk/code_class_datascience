@@ -84,6 +84,7 @@ st.divider()
 # =========================
 st.header("📊 Visão Geral dos Dados")
 
+# Primeira linha - Métricas básicas
 col1, col2, col3, col4 = st.columns(4)
 
 with col1:
@@ -102,17 +103,116 @@ with col2:
 
 with col3:
     st.metric(
-        "Temperatura Média",
-        f"{df['Temperatura Media (C)'].mean():.1f}°C",
-        help="Temperatura média do período"
+        "Mediana do Consumo",
+        f"{df['Consumo de cerveja (litros)'].median():.1f}L",
+        help="Valor central da distribuição - menos sensível a outliers"
     )
 
 with col4:
+    st.metric(
+        "Desvio Padrão",
+        f"{df['Consumo de cerveja (litros)'].std():.1f}L",
+        help="Variabilidade dos dados - quanto maior, mais dispersos"
+    )
+
+st.divider()
+
+# Segunda linha - Estatísticas de dispersão e qualidade
+st.subheader("📈 Estatísticas de Dispersão e Qualidade dos Dados")
+
+col1, col2, col3, col4, col5 = st.columns(5)
+
+with col1:
+    cv = (df['Consumo de cerveja (litros)'].std() / df['Consumo de cerveja (litros)'].mean()) * 100
+    st.metric(
+        "Coeficiente de Variação",
+        f"{cv:.1f}%",
+        help="Variabilidade relativa - valores < 30% indicam dados homogêneos"
+    )
+
+with col2:
+    variancia = df['Consumo de cerveja (litros)'].var()
+    st.metric(
+        "Variância",
+        f"{variancia:.1f}",
+        help="Medida de dispersão ao quadrado"
+    )
+
+with col3:
+    q1 = df['Consumo de cerveja (litros)'].quantile(0.25)
+    q3 = df['Consumo de cerveja (litros)'].quantile(0.75)
+    iqr = q3 - q1
+    st.metric(
+        "Amplitude Interquartil (IQR)",
+        f"{iqr:.1f}L",
+        help="Diferença entre Q3 e Q1 - range dos 50% centrais"
+    )
+
+with col4:
+    amplitude = df['Consumo de cerveja (litros)'].max() - df['Consumo de cerveja (litros)'].min()
+    st.metric(
+        "Amplitude Total",
+        f"{amplitude:.1f}L",
+        help="Diferença entre valor máximo e mínimo"
+    )
+
+with col5:
+    # Teste de normalidade visual através da assimetria
+    skewness = df['Consumo de cerveja (litros)'].skew()
+    st.metric(
+        "Assimetria (Skewness)",
+        f"{skewness:.3f}",
+        help="Próximo a 0 = simétrica | > 0 = assimétrica à direita | < 0 = à esquerda"
+    )
+
+st.divider()
+
+# Terceira linha - Correlações e extremos
+st.subheader("🔗 Correlações e Valores Extremos")
+
+col1, col2, col3, col4, col5 = st.columns(5)
+
+with col1:
     correlacao_temp = df['Temperatura Media (C)'].corr(df['Consumo de cerveja (litros)'])
     st.metric(
         "Correlação Temp×Consumo",
         f"{correlacao_temp:.3f}",
-        help="Quanto mais próximo de 1, maior a relação positiva"
+        delta="Forte" if abs(correlacao_temp) > 0.7 else "Moderada" if abs(correlacao_temp) > 0.4 else "Fraca",
+        help="Quanto mais próximo de ±1, mais forte a relação"
+    )
+
+with col2:
+    correlacao_prec = df['Precipitacao (mm)'].corr(df['Consumo de cerveja (litros)'])
+    st.metric(
+        "Correlação Chuva×Consumo",
+        f"{correlacao_prec:.3f}",
+        delta="Inversa" if correlacao_prec < 0 else "Direta",
+        help="Valor negativo indica relação inversa"
+    )
+
+with col3:
+    max_consumo = df['Consumo de cerveja (litros)'].max()
+    st.metric(
+        "Consumo Máximo",
+        f"{max_consumo:.1f}L",
+        help="Maior consumo registrado no período"
+    )
+
+with col4:
+    min_consumo = df['Consumo de cerveja (litros)'].min()
+    st.metric(
+        "Consumo Mínimo",
+        f"{min_consumo:.1f}L",
+        help="Menor consumo registrado no período"
+    )
+
+with col5:
+    # Percentual de dados completos
+    completude = (1 - df['Consumo de cerveja (litros)'].isna().sum() / len(df)) * 100
+    st.metric(
+        "Completude dos Dados",
+        f"{completude:.1f}%",
+        help="Percentual de dados válidos (sem valores faltantes)"
     )
 
 st.divider()
@@ -242,7 +342,7 @@ with col_grafico:
     fig_rank.tight_layout()
     st.pyplot(fig_rank)
 
-st.success("🥇 **Destaque**: Domingo  é o campeão absoluto de consumo, seguido por Sábado e Sexta-feira!")
+st.success("🥇 **Destaque**: Domingo  é o campeão absoluto de consumo, seguido pelo Sábado!")
 
 st.divider()
 
