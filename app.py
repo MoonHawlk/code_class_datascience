@@ -799,3 +799,340 @@ maximizando disponibilidade em períodos de alta temperatura e finais de semana 
 """)
 
 st.divider()
+
+# =========================
+# 13. ANÁLISE DE SIGNIFICÂNCIA ESTATÍSTICA ENTRE MESES
+# =========================
+st.header("📊 Análise de Significância Estatística entre Meses")
+st.markdown("**Os meses apresentam diferenças estatisticamente significativas no consumo de cerveja?**")
+
+from scipy import stats
+from scipy.stats import f_oneway, ttest_ind
+from itertools import combinations
+
+# Preparar dados por mês
+meses_data = []
+meses_nomes = []
+
+for mes in range(1, 13):
+    df_mes = df[df['Mes'] == mes]['Consumo de cerveja (litros)'].dropna()
+    if len(df_mes) > 0:
+        meses_data.append(df_mes)
+        meses_nomes.append(calendar.month_name[mes])
+
+# =========================
+# Teste ANOVA
+# =========================
+st.subheader("1️⃣ Teste ANOVA (Análise de Variância)")
+
+# Realizar ANOVA
+f_statistic, p_value_anova = f_oneway(*meses_data)
+
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    st.metric(
+        "Estatística F",
+        f"{f_statistic:.4f}",
+        help="Razão entre variância entre grupos e dentro dos grupos"
+    )
+
+with col2:
+    st.metric(
+        "Valor-p (ANOVA)",
+        f"{p_value_anova:.6f}",
+        help="Probabilidade de obter esses resultados por acaso"
+    )
+
+with col3:
+    significancia_anova = "SIM" if p_value_anova < 0.05 else "NÃO"
+    st.metric(
+        "Significância (α=0.05)",
+        significancia_anova,
+        delta="Diferenças detectadas" if p_value_anova < 0.05 else "Sem diferenças",
+        help="Há diferença significativa entre pelo menos dois meses?"
+    )
+
+if p_value_anova < 0.05:
+    st.success(f"""
+    ✅ **Resultado ANOVA**: Com p-value = {p_value_anova:.6f} (< 0.05), **rejeitamos a hipótese nula**.
+    
+    **Conclusão**: Existe diferença estatisticamente significativa no consumo de cerveja entre os meses do ano.
+    """)
+else:
+    st.info(f"""
+    ℹ️ **Resultado ANOVA**: Com p-value = {p_value_anova:.6f} (≥ 0.05), **não rejeitamos a hipótese nula**.
+    
+    **Conclusão**: Não há evidência suficiente de diferença estatisticamente significativa entre os meses.
+    """)
+
+st.divider()
+
+# =========================
+# Teste Post-Hoc (Comparações Pareadas)
+# =========================
+st.subheader("2️⃣ Análise Post-Hoc: Comparações Pareadas entre Meses")
+st.markdown("**Teste t de Student para cada par de meses (com correção de Bonferroni)**")
+
+# Criar matriz de comparações
+n_comparacoes = len(list(combinations(range(len(meses_nomes)), 2)))
+alpha_bonferroni = 0.05 / n_comparacoes  # Correção de Bonferroni
+
+resultados_comparacoes = []
+
+for i, j in combinations(range(len(meses_nomes)), 2):
+    mes1_nome = meses_nomes[i]
+    mes2_nome = meses_nomes[j]
+    
+    # Teste t de Student
+    t_stat, p_value = ttest_ind(meses_data[i], meses_data[j])
+    
+    # Verificar significância com Bonferroni
+    significativo_bonferroni = "SIM" if p_value < alpha_bonferroni else "NÃO"
+    significativo_normal = "SIM" if p_value < 0.05 else "NÃO"
+    
+    # Calcular diferença de médias
+    diff_media = meses_data[i].mean() - meses_data[j].mean()
+    
+    resultados_comparacoes.append({
+        'Mês 1': mes1_nome,
+        'Mês 2': mes2_nome,
+        'Média Mês 1 (L)': f"{meses_data[i].mean():.2f}",
+        'Média Mês 2 (L)': f"{meses_data[j].mean():.2f}",
+        'Diferença (L)': f"{diff_media:.2f}",
+        'Estatística t': f"{t_stat:.4f}",
+        'Valor-p': f"{p_value:.6f}",
+        'Significativo (α=0.05)': significativo_normal,
+        'Significativo (Bonferroni)': significativo_bonferroni
+    })
+
+# Criar DataFrame com resultados
+df_comparacoes = pd.DataFrame(resultados_comparacoes)
+
+# Filtrar apenas comparações significativas
+df_significativas = df_comparacoes[df_comparacoes['Significativo (Bonferroni)'] == 'SIM'].copy()
+
+st.info(f"""
+📌 **Informações sobre os testes:**
+- **Total de comparações**: {n_comparacoes} pares de meses
+- **Nível de significância padrão**: α = 0.05
+- **Nível de significância com correção de Bonferroni**: α = {alpha_bonferroni:.6f}
+- **Comparações significativas encontradas (Bonferroni)**: {len(df_significativas)}
+""")
+
+st.divider()
+
+# =========================
+# Tabela de Resultados Completa
+# =========================
+st.subheader("📋 Tabela Completa de Comparações Pareadas")
+
+# Criar abas para visualização
+tab1, tab2, tab3 = st.tabs(["✅ Significativas (Bonferroni)", "📊 Todas as Comparações", "🔍 Detalhes por Mês"])
+
+with tab1:
+    if len(df_significativas) > 0:
+        st.markdown(f"**{len(df_significativas)} pares de meses com diferença estatisticamente significativa:**")
+        st.dataframe(
+            df_significativas,
+            use_container_width=True,
+            height=400
+        )
+    else:
+        st.warning("⚠️ Nenhuma comparação foi significativa após a correção de Bonferroni.")
+
+with tab2:
+    st.markdown("**Todas as comparações pareadas:**")
+    
+    # Adicionar formatação condicional
+    def highlight_significant(row):
+        if row['Significativo (Bonferroni)'] == 'SIM':
+            return ['background-color: #d4edda'] * len(row)
+        elif row['Significativo (α=0.05)'] == 'SIM':
+            return ['background-color: #fff3cd'] * len(row)
+        else:
+            return [''] * len(row)
+    
+    st.dataframe(
+        df_comparacoes.style.apply(highlight_significant, axis=1),
+        use_container_width=True,
+        height=600
+    )
+    
+    st.caption("""
+    🟢 **Verde**: Significativo com correção de Bonferroni (α = {:.6f})  
+    🟡 **Amarelo**: Significativo sem correção (α = 0.05)  
+    ⚪ **Branco**: Não significativo
+    """.format(alpha_bonferroni))
+
+with tab3:
+    st.markdown("**Estatísticas descritivas por mês:**")
+    
+    estatisticas_meses = []
+    for i, mes_nome in enumerate(meses_nomes):
+        mes_num = i + 1
+        dados_mes = meses_data[i]
+        
+        estatisticas_meses.append({
+            'Mês': mes_nome,
+            'N (dias)': len(dados_mes),
+            'Média (L)': f"{dados_mes.mean():.2f}",
+            'Mediana (L)': f"{dados_mes.median():.2f}",
+            'Desvio Padrão (L)': f"{dados_mes.std():.2f}",
+            'Mínimo (L)': f"{dados_mes.min():.2f}",
+            'Máximo (L)': f"{dados_mes.max():.2f}",
+            'CV (%)': f"{(dados_mes.std() / dados_mes.mean() * 100):.1f}"
+        })
+    
+    df_estatisticas = pd.DataFrame(estatisticas_meses)
+    st.dataframe(df_estatisticas, use_container_width=True)
+
+st.divider()
+
+# =========================
+# Visualização: Heatmap de Significância
+# =========================
+st.subheader("🎨 Mapa de Calor: Significância Estatística entre Meses")
+
+# Criar matriz de p-values
+n_meses = len(meses_nomes)
+p_value_matrix = np.ones((n_meses, n_meses))
+
+for idx, row in df_comparacoes.iterrows():
+    i = meses_nomes.index(row['Mês 1'])
+    j = meses_nomes.index(row['Mês 2'])
+    p_val = float(row['Valor-p'])
+    p_value_matrix[i, j] = p_val
+    p_value_matrix[j, i] = p_val
+
+# Criar matriz de significância
+significance_matrix = np.where(p_value_matrix < alpha_bonferroni, 1, 
+                              np.where(p_value_matrix < 0.05, 0.5, 0))
+
+fig_heatmap, ax = plt.subplots(figsize=(14, 12))
+
+# Criar labels personalizados
+labels = np.empty_like(significance_matrix, dtype=object)
+for i in range(n_meses):
+    for j in range(n_meses):
+        if i == j:
+            labels[i, j] = '-'
+        elif significance_matrix[i, j] == 1:
+            labels[i, j] = f'✓✓\n{p_value_matrix[i, j]:.4f}'
+        elif significance_matrix[i, j] == 0.5:
+            labels[i, j] = f'✓\n{p_value_matrix[i, j]:.4f}'
+        else:
+            labels[i, j] = f'✗\n{p_value_matrix[i, j]:.4f}'
+
+# Criar heatmap
+sns.heatmap(
+    significance_matrix,
+    annot=labels,
+    fmt='',
+    cmap=['#f8d7da', '#fff3cd', '#d4edda'],
+    xticklabels=[m[:3] for m in meses_nomes],
+    yticklabels=[m[:3] for m in meses_nomes],
+    cbar_kws={'label': 'Nível de Significância', 
+              'ticks': [0, 0.5, 1],
+              'format': plt.FuncFormatter(lambda x, p: ['Não Sig.', 'Sig. (α=0.05)', 'Sig. (Bonf.)'][int(x*2)])},
+    linewidths=1,
+    linecolor='gray',
+    ax=ax,
+    square=True
+)
+
+ax.set_title(
+    'Significância Estatística das Comparações entre Meses\n'
+    f'✓✓ = Significativo (Bonferroni, α={alpha_bonferroni:.6f}) | ✓ = Significativo (α=0.05) | ✗ = Não Significativo',
+    fontsize=14,
+    fontweight='bold',
+    pad=20
+)
+ax.set_xlabel('Mês', fontsize=12, fontweight='bold')
+ax.set_ylabel('Mês', fontsize=12, fontweight='bold')
+
+plt.tight_layout()
+st.pyplot(fig_heatmap)
+
+st.caption("""
+**Como ler o mapa:**
+- 🟢 **Verde**: Diferença estatisticamente significativa (com correção de Bonferroni)
+- 🟡 **Amarelo**: Diferença significativa sem correção de múltiplas comparações
+- 🔴 **Vermelho**: Sem diferença estatística significativa
+- Os valores mostram o p-value de cada comparação
+""")
+
+st.divider()
+
+# =========================
+# Resumo Executivo
+# =========================
+st.subheader("📝 Resumo Executivo da Análise Estatística")
+
+n_sig_bonf = len(df_significativas)
+n_sig_normal = len(df_comparacoes[df_comparacoes['Significativo (α=0.05)'] == 'SIM'])
+perc_sig_bonf = (n_sig_bonf / n_comparacoes) * 100
+perc_sig_normal = (n_sig_normal / n_comparacoes) * 100
+
+col1, col2, col3, col4 = st.columns(4)
+
+with col1:
+    st.metric(
+        "Comparações Totais",
+        n_comparacoes,
+        help="Total de pares de meses comparados"
+    )
+
+with col2:
+    st.metric(
+        "Significativas (Bonferroni)",
+        f"{n_sig_bonf} ({perc_sig_bonf:.1f}%)",
+        help="Com correção para múltiplas comparações"
+    )
+
+with col3:
+    st.metric(
+        "Significativas (α=0.05)",
+        f"{n_sig_normal} ({perc_sig_normal:.1f}%)",
+        help="Sem correção para múltiplas comparações"
+    )
+
+with col4:
+    mes_maior = meses_nomes[np.argmax([m.mean() for m in meses_data])]
+    mes_menor = meses_nomes[np.argmin([m.mean() for m in meses_data])]
+    st.metric(
+        "Maior vs Menor",
+        f"{mes_maior[:3]} > {mes_menor[:3]}",
+        help="Meses com maior e menor consumo médio"
+    )
+
+# Conclusão final
+if p_value_anova < 0.05:
+    st.success(f"""
+    ### ✅ **Conclusão da Análise Estatística**
+    
+    **ANOVA Global**: F = {f_statistic:.4f}, p = {p_value_anova:.6f} → **Significativo**
+    
+    Os dados fornecem **evidência estatística forte** de que o consumo de cerveja varia significativamente 
+    entre os meses do ano. Das {n_comparacoes} comparações pareadas:
+    
+    - **{n_sig_bonf} pares** ({perc_sig_bonf:.1f}%) apresentam diferenças significativas mesmo após correção de Bonferroni
+    - **{n_sig_normal} pares** ({perc_sig_normal:.1f}%) são significativos no nível α = 0.05
+    
+    **Implicação Prática**: As variações mensais no consumo **NÃO são aleatórias** e devem ser consideradas 
+    no planejamento de estoque e estratégias de marketing.
+    """)
+else:
+    st.info(f"""
+    ### ℹ️ **Conclusão da Análise Estatística**
+    
+    **ANOVA Global**: F = {f_statistic:.4f}, p = {p_value_anova:.6f} → **Não Significativo**
+    
+    Os dados **não fornecem evidência estatística suficiente** de que o consumo de cerveja varia 
+    significativamente entre os meses do ano ao nível de significância de 5%.
+    
+    **Implicação Prática**: As variações observadas podem ser devidas ao acaso e não necessariamente 
+    refletem padrões sazonais consistentes.
+    """)
+
+st.divider()
