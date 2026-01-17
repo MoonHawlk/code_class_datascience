@@ -1,3 +1,5 @@
+import os; os.system("python -m pip install streamlit pandas numpy matplotlib seaborn")
+
 # =========================
 # 1. Imports e Configuração
 # =========================
